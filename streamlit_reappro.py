@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from IPython.display import display
 import plotly.express as px
 import io
 
@@ -29,7 +28,7 @@ with st.sidebar.expander("📅 Paramètres Temporels", expanded=True):
     semaines_par_an = st.number_input(
         "Semaines par an",
         min_value=48,
-        max_value=52,
+        max_value=54,
         value=52,
         help="Nombre de semaines d'activité par an"
     )
