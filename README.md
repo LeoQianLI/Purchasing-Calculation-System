@@ -207,15 +207,6 @@ Pour contribuer au projet :
 4. Push vers la branche (`git push origin feature/nouvelle-fonctionnalite`)
 5. Créez une Pull Request
 
-## 📄 Licence
-
-Ce projet est sous licence [MIT/Apache/etc.] - voir le fichier LICENSE pour plus de détails.
-
-## 📞 Support
-
-Pour toute question ou problème :
-- Créez une issue sur GitHub
-- Contactez l'équipe de développement
 
 ---
 
