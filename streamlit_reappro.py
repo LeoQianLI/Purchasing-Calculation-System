@@ -205,24 +205,29 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
         
         st.write("Nombre de lignes après le filtre:", len(df_filtre))
         
+        # Vérification que nous avons des données à traiter
+        if len(df_filtre) == 0:
+            st.error("❌ Aucune donnée valide après filtrage. Vérifiez vos fichiers d'entrée.")
+            st.stop()
+        
         # Vérifier si df_filtre a des données
-        if len(df_filtre) > 0:
-            st.success(f"✅ df_filtre prêt avec {len(df_filtre)} lignes")
-            try:  
-                output = io.BytesIO()
-                df_filtre.to_excel(output, index=False)
-                output.seek(0)
-                st.download_button(
-                    label="📥 Télécharger df_filtre.xlsx",
-                    data=output,
-                    file_name="df_filtre.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-                st.info("👆 Cliquez sur le bouton ci-dessus pour télécharger df_filtre")
-            except Exception as e:
-                st.error(f"❌ Erreur lors de la création du fichier Excel: {e}")
-        else:
-            st.warning("⚠️ df_filtre est vide, impossible de créer le fichier Excel")
+        #if len(df_filtre) > 0:
+             #st.success(f"✅ df_filtre prêt avec {len(df_filtre)} lignes")
+            #try:  
+            #    output = io.BytesIO()
+            #    df_filtre.to_excel(output, index=False)
+            #    output.seek(0)
+            #    st.download_button(
+            #        label="📥 Télécharger df_filtre.xlsx",
+            #        data=output,
+            #        file_name="df_filtre.xlsx",
+            #        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            #    )
+            #    st.info("👆 Cliquez sur le bouton ci-dessus pour télécharger df_filtre")
+            #except Exception as e:
+            #    st.error(f"❌ Erreur lors de la création du fichier Excel: {e}")
+        #else:
+        #    st.warning("⚠️ df_filtre est vide, impossible de créer le fichier Excel")
 
         # Transferé les valeur negative de la colonne vendu à la colonne stock
         df_filtre['2023 Qté en stock'] = df_filtre.apply(lambda x: x['2023 Qté en stock'] + abs(x['2023 Qté Vendue']) if x['2023 Qté Vendue'] < 0 else x['2023 Qté en stock'], axis=1)
@@ -259,6 +264,15 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
         jours_ouverture_bruts = jours_par_semaine * semaines_par_an
         jours_commerciaux = int(jours_ouverture_bruts - jours_feries_fermeture)
         jours_ecoules_2025 = (pd.to_datetime(current_day) - pd.to_datetime("2025-01-01")).days - 40
+
+        # Vérifications pour éviter les divisions par zéro
+        if jours_commerciaux <= 0:
+            st.error("❌ Erreur : Le nombre de jours commerciaux doit être positif")
+            st.stop()
+        
+        if jours_ecoules_2025 <= 0:
+            st.error("❌ Erreur : Le nombre de jours écoulés en 2025 doit être positif")
+            st.stop()
 
         # 1. PÉRIODES COHÉRENTES - Jours d'ouverture réels de votre entreprise
         st.write("### 1. PÉRIODES COHÉRENTES - Jours d'ouverture réels de votre entreprise")
@@ -319,7 +333,13 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
 
         # 2. Calculer le pourcentage de chaque article
         total_sales = df_filtre['ventes_quotidiennes_moyennes'].sum()
-        df_filtre['pourcentage'] = (df_filtre['ventes_quotidiennes_moyennes'] / total_sales) * 100
+        
+        # Vérification pour éviter la division par zéro
+        if total_sales == 0:
+            st.warning("⚠️ Aucune vente détectée, attribution de pourcentages uniformes")
+            df_filtre['pourcentage'] = 100.0 / len(df_filtre) if len(df_filtre) > 0 else 0
+        else:
+            df_filtre['pourcentage'] = (df_filtre['ventes_quotidiennes_moyennes'] / total_sales) * 100
 
         # 3. Calculer le pourcentage cumulé
         df_filtre['cum_pourcentage'] = df_filtre['pourcentage'].cumsum()
@@ -411,18 +431,35 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
             qte_recue = f"{annee} Qté Reçue" if annee != '2023' else "2023 Qté Reçue"  # attention à l'espace
             qte_ve = f"{annee} Qté VE"
 
-            df_non_null[f"marge/pcs {annee}"] = (df_non_null[vente_total] / df_non_null[qte_vendue].replace(0, np.nan)) - (df_non_null[achat_total] / df_non_null[qte_recue].replace(0, np.nan))
-            df_non_null[f"marge/pcs {annee}"] = df_non_null[f"marge/pcs {annee}"].fillna(0)
+            # Calcul sécurisé des marges par pièce avec gestion des divisions par zéro
+            try:
+                df_non_null[f"marge/pcs {annee}"] = (df_non_null[vente_total] / df_non_null[qte_vendue].replace(0, np.nan)) - (df_non_null[achat_total] / df_non_null[qte_recue].replace(0, np.nan))
+                df_non_null[f"marge/pcs {annee}"] = df_non_null[f"marge/pcs {annee}"].fillna(0)
+            except Exception as e:
+                st.warning(f"⚠️ Problème dans le calcul des marges pour {annee}: {e}")
+                df_non_null[f"marge/pcs {annee}"] = 0
+                
             df_non_null[f"marge moyen {annee}"] = df_non_null[f"marge/pcs {annee}"] * df_non_null[qte_ve].fillna(0)
-
             df_non_null[f"marge total {annee}"] = df_non_null[vente_total] - df_non_null[achat_total] 
 
         current_day = '2025-06-05'
         days = (pd.to_datetime(current_day) - pd.to_datetime("2025-01-01")).days +1
+        
+        # Vérification pour éviter la division par zéro
+        if days <= 0:
+            st.error("❌ Erreur : Le nombre de jours calculé doit être positif")
+            days = 1  # Valeur par défaut pour éviter l'erreur
+            
         df_non_null['marge prevu 2025'] = (df_non_null['marge moyen 2025']*(270/days)).fillna(0)
 
         df_non_null['ratio_rotation_2025'] = np.where(df_non_null['2025 Qté en stock'] > 0, df_non_null['2025 Qté Vendue'] / df_non_null['2025 Qté en stock'], 0)
-        df_non_null['valeur_stock_2025'] = (df_non_null['2025 Qté en stock']) * abs(df_non_null['2025 achat total']/df_non_null['2025 Qté Reçue'])
+        
+        # Calcul sécurisé de la valeur du stock pour éviter la division par zéro
+        df_non_null['valeur_stock_2025'] = np.where(
+            df_non_null['2025 Qté Reçue'] != 0,
+            (df_non_null['2025 Qté en stock']) * abs(df_non_null['2025 achat total'] / df_non_null['2025 Qté Reçue']),
+            0
+        )
         df_non_null['valeur_stock_2025'] = df_non_null['valeur_stock_2025'].fillna(0)
 
         # Classement top 2000 CA, QTE, Profit
@@ -509,6 +546,7 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
             file_name="df_non_null.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+        st.info("👆 Cliquez sur le bouton ci-dessus pour télécharger le fichier Excel")
         
     except Exception as e:
         st.error(f"Une erreur est survenue lors du traitement des fichiers : {e}")
