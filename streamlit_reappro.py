@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+
 import plotly.express as px
 import io
 
@@ -165,7 +166,7 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
         df_sales['2024 Qté en stock'] = df_m['2024 Qte En Stock - FDM']
       
         # Merge with service file
-        df_spe = df_sales.merge(df_cde_special[['Code Article', 2023, 2024, 2025]], on= 'Code Article', how ='left').fillna(0)
+        df_spe = df_sales.merge(df_cde_special[['Code Article', 2023, 2024, 2025]], on= 'Code Article', how ='left').fillna(0).infer_objects(copy=False)
         
         # Nettoyer et convertir toutes les colonnes numériques
         numeric_columns = [2023, 2024, 2025, '2023 Qté Vendue', '2024 Qté Vendue', '2025 Qté Vendue', 
@@ -295,14 +296,15 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
         # Graphique classer le vente quotidiennes par chaque marque dans l'order decoissant
         brand_sales_ranking = df_filtre.groupby('Code Article')['ventes_quotidiennes_moyennes'].mean().sort_values(ascending=False).head(20)
         # diagramme top 20 artcile des ventes quotidiennes moyennes
-        plt.figure(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(10, 6))
         # Access the index for the x-axis values
-        sns.barplot(x=brand_sales_ranking.index, y=brand_sales_ranking.values)
-        plt.xlabel('Code Article') # Changed label to reflect the x-axis content
-        plt.ylabel('Ventes quotidiennes moyennes')
-        plt.title('Top 20 des articles par ventes quotidiennes moyennes') # Changed title to reflect article instead of brand
-        plt.xticks(rotation=90)
-        st.pyplot(plt)
+        sns.barplot(x=brand_sales_ranking.index, y=brand_sales_ranking.values, ax=ax)
+        ax.set_xlabel('Code Article') # Changed label to reflect the x-axis content
+        ax.set_ylabel('Ventes quotidiennes moyennes')
+        ax.set_title('Top 20 des articles par ventes quotidiennes moyennes') # Changed title to reflect article instead of brand
+        ax.tick_params(axis='x', rotation=90)
+        st.pyplot(fig)
+        plt.close(fig)
 
         # 1. Trier les articles par ventes quotidiennes moyennes décroissantes
         df_filtre = df_filtre.sort_values(by='ventes_quotidiennes_moyennes', ascending=False)
@@ -333,11 +335,12 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
 
         #Pie chart catégorielle par nombre de ventes
         categorie_count = df_filtre['categorie'].value_counts()
-        plt.figure(figsize=(10, 6))
-        plt.pie(categorie_count, labels=categorie_count.index, autopct='%1.1f%%', startangle=140)
-        plt.title('Répartition des articles par catégorie')
-        plt.axis('equal')
-        st.pyplot(plt)
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.pie(categorie_count, labels=categorie_count.index, autopct='%1.1f%%', startangle=140)
+        ax.set_title('Répartition des articles par catégorie')
+        ax.axis('equal')
+        st.pyplot(fig)
+        plt.close(fig)
 
         # Intergrer avec tableau de prix
         uploaded_filed4 = st.file_uploader("Choisissez un fichier (prix) sur votre ordinateur", type=["xlsx"], key="prix")
