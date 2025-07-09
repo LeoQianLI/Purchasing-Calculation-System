@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import io
 
+# Suppress pandas FutureWarning about downcasting
+pd.set_option('future.no_silent_downcasting', True)
+
 st.title("Système de calcul de reapprovisionnement")
 
 # ============================================================================
@@ -170,7 +173,8 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
         df_sales['2024 Qté en stock'] = df_m['2024 Qte En Stock - FDM']
       
         # Merge with service file
-        df_spe = df_sales.merge(df_cde_special[['Code Article', 2023, 2024, 2025]], on= 'Code Article', how ='left').fillna(0).infer_objects(copy=False)
+        df_spe = df_sales.merge(df_cde_special[['Code Article', 2023, 2024, 2025]], on= 'Code Article', how ='left')
+        df_spe = df_spe.fillna(0).infer_objects(copy=False)
         
         # Nettoyer et convertir toutes les colonnes numériques
         numeric_columns = [2023, 2024, 2025, '2023 Qté Vendue', '2024 Qté Vendue', '2025 Qté Vendue', 
@@ -182,7 +186,7 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
         for col in numeric_columns:
             if col in df_spe.columns:
                 # Remplacer les chaînes vides et autres valeurs non numériques par 0
-                df_spe[col] = pd.to_numeric(df_spe[col], errors='coerce').fillna(0)
+                df_spe[col] = pd.to_numeric(df_spe[col], errors='coerce').fillna(0).infer_objects(copy=False)
         
         df_spe['2023 Qté VE'] = df_spe['2023 Qté Vendue'] - df_spe[2023]
         df_spe['2024 Qté VE'] = df_spe['2024 Qté Vendue'] - df_spe[2024]
@@ -191,10 +195,10 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
         st.write("Aperçu des données fusionnées:")
         
         # remplacer les valeur Nan par 0 (redondant mais conservé pour la sécurité)
-        df_spe['2023 Qté en stock'] = df_spe['2023 Qté en stock'].fillna(0)
-        df_spe['2024 Qté en stock'] = df_spe['2024 Qté en stock'].fillna(0)
-        df_spe['2025 Qté en stock'] = df_spe['2025 Qté en stock'].fillna(0)
-        df_spe['2023 Qté Reçue'] = df_spe['2023 Qté Reçue'].fillna(0)
+        df_spe['2023 Qté en stock'] = df_spe['2023 Qté en stock'].fillna(0).infer_objects(copy=False)
+        df_spe['2024 Qté en stock'] = df_spe['2024 Qté en stock'].fillna(0).infer_objects(copy=False)
+        df_spe['2025 Qté en stock'] = df_spe['2025 Qté en stock'].fillna(0).infer_objects(copy=False)
+        df_spe['2023 Qté Reçue'] = df_spe['2023 Qté Reçue'].fillna(0).infer_objects(copy=False)
         
         # filtre les valeurs negative dans la colonnes de stock
         df_filtre = df_spe[df_spe['2025 Qté en stock']>=0].copy()
@@ -226,9 +230,9 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
         df_filtre['2025 Qté en stock'] = df_filtre.apply(lambda x: x['2025 Qté en stock'] + abs(x['2025 Qté Vendue']) if x['2025 Qté Vendue'] < 0 else x['2025 Qté en stock'], axis=1)
 
         # Change negative values in '2025 Qté VE' to 0 and fill NaN values with 0
-        df_filtre['2023 Qté VE'] = df_filtre['2023 Qté VE'].clip(lower=0).fillna(0)
-        df_filtre['2024 Qté VE'] = df_filtre['2024 Qté VE'].clip(lower=0).fillna(0)
-        df_filtre['2025 Qté VE'] = df_filtre['2025 Qté VE'].clip(lower=0).fillna(0)
+        df_filtre['2023 Qté VE'] = df_filtre['2023 Qté VE'].clip(lower=0).fillna(0).infer_objects(copy=False)
+        df_filtre['2024 Qté VE'] = df_filtre['2024 Qté VE'].clip(lower=0).fillna(0).infer_objects(copy=False)
+        df_filtre['2025 Qté VE'] = df_filtre['2025 Qté VE'].clip(lower=0).fillna(0).infer_objects(copy=False)
 
         # calculer l'achat de 2024 les cases vide
         def achat_2024(row):
