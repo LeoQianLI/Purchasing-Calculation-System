@@ -663,7 +663,6 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
                 merged_df = df_filtre
         else:
             merged_df = df_filtre
-            st.info("💡 Aucun fichier de prix fourni. Utilisation des données de base.")
 
         #filtre les marques seulment stock par ottogo
         brands = ['APLUS', 'ASSO', 'AUTOPART', 'AVA COOLING', 'BARDAHL', 'BERU', 'BRILLANT TOOLS', 'CALORSTAT', 'CASTROL', 'CHAMPION LUBRICANTS', 'CLAS', 'CORTECO MEILLOR',
@@ -679,6 +678,16 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
         columns_to_check = ['2024 Qté Reçue', '2024 Qté Vendue', '2024 Qté en stock', '2025 Qté Reçue', '2025 Qté Vendue', 
                             '2023 achat total', '2023 vente total', '2024 achat total', '2024 vente total', '2025 achat total', 
                             '2025 vente total', '2025 Qté en stock']
+        
+        # Vérifier quelles colonnes existent réellement dans le DataFrame
+        existing_columns = [col for col in columns_to_check if col in ottogo_stock.columns]
+        missing_columns = [col for col in columns_to_check if col not in ottogo_stock.columns]
+        
+        if missing_columns:
+            # Ajouter les colonnes manquantes avec des valeurs par défaut
+            for col in missing_columns:
+                ottogo_stock[col] = 0
+        
         # Check if all values in the columns_to_check are 0
         df_non_null = ottogo_stock[~(ottogo_stock[columns_to_check] ==0).all(axis=1)]
         df_non_null = df_non_null.copy()  # Ajoutez ceci avant les calculs
@@ -911,7 +920,22 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
             )
         
     except Exception as e:
-        st.error(f"❌ Une erreur est survenue lors du traitement des fichiers : {e}")
+        st.error(f"❌ Erreur lors du traitement des données : {e}")
+        st.info("💡 Veuillez vérifier le format de vos fichiers Excel et réessayer.")
+        
+        # Afficher les détails de l'erreur en mode développement
+        with st.expander("🔍 Détails de l'erreur (pour diagnostic)"):
+            st.code(str(e))
+        
+        # Afficher le message d'aide en cas d'erreur
+        st.markdown("""
+        <div class="warning-container">
+            <h4 style="margin: 0; color: white;">🔄 Vérifiez vos fichiers</h4>
+            <p style="margin: 0.5rem 0 0 0; color: white;">
+                Assurez-vous que vos fichiers Excel respectent le format attendu et réessayez.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 else:
     # Message d'accueil stylé quand aucun fichier n'est uploadé
     st.markdown("""
