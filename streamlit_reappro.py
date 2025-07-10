@@ -634,291 +634,382 @@ if uploaded_file1 and uploaded_file2 and uploaded_file3:
         
         st.plotly_chart(fig_pie, use_container_width=True)
 
-        # Section intégration avec tableau de prix
+        # ============================================================================
+        # ÉTAPE 2 : INTEGRATION DES DONNÉES DE PRIX (REQUIS POUR L'ANALYSE FINALE)
+        # ============================================================================
+        
+        st.divider()
         st.markdown("""
         <div class="section-header">
-            <h3 style="margin: 0;">💰 Intégration des Données de Prix (Optionnel)</h3>
+            <h2 style="margin: 0;">🔬 Étape 2 : Intégration des Données de Prix</h2>
         </div>
         """, unsafe_allow_html=True)
         
-        uploaded_filed4 = st.file_uploader("📊 Fichier Prix (optionnel)", type=["xlsx"], key="prix", 
-                                          help="Ajoutez ce fichier pour enrichir l'analyse avec les données de prix")
-        if uploaded_filed4:
+        st.markdown("""
+        <div class="info-container">
+            <h3 style="color: white; margin-bottom: 1rem;">📊 Analyse de Base Terminée</h3>
+            <p style="color: #ecf0f1; margin-bottom: 1rem; line-height: 1.6;">
+                L'analyse de base des 3 fichiers est terminée. Pour accéder à l'analyse finale 
+                avec calcul des marges, recommandations de réapprovisionnement et téléchargement des résultats:
+            </p>
+            <p style="color: #ecf0f1; margin: 0; font-weight: bold; text-align: center;">
+                👇 Veuillez télécharger le fichier de prix ci-dessous
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        uploaded_file4 = st.file_uploader("📊 Fichier Prix (REQUIS pour l'analyse finale)", type=["xlsx"], key="prix", 
+                                          help="Ce fichier est nécessaire pour l'analyse finale avec calcul des marges")
+        
+        # ANALYSE FINALE UNIQUEMENT SI LE FICHIER PRIX EST UPLOADÉ
+        if uploaded_file4 is not None:
             try:
-                df_prix = pd.read_excel(uploaded_filed4).loc[3:]
+                st.markdown("""
+                <div class="section-header">
+                    <h2 style="margin: 0;">🔬 Étape 3 : Analyse Finale avec Données de Prix</h2>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Chargement du fichier prix
+                df_prix = pd.read_excel(uploaded_file4).iloc[3:]
                 merged_df = pd.merge(df_filtre, df_prix, on='Code Article', how='left')
                 if 'Marque_y' in merged_df.columns:
                     merged_df.drop(columns=['Marque_y'], inplace=True)
                 
                 st.markdown("""
                 <div class="success-container">
-                    <h4 style="margin: 0; color: white;">✅ Données de Prix Intégrées</h4>
-                    <p style="margin: 0.5rem 0 0 0; color: white;">Les données de prix ont été fusionnées avec succès!</p>
+                    <h3 style="margin: 0; color: white;">🎉 Données de Prix Intégrées!</h3>
+                    <p style="margin: 0.5rem 0 0 0; color: white;">Les données de prix ont été fusionnées avec succès. L'analyse finale commence maintenant!</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
                 st.dataframe(merged_df.head(10), use_container_width=True)
-            except Exception as e:
-                st.error(f"❌ Erreur lors de l'intégration des prix: {e}")
-                merged_df = df_filtre
-        else:
-            merged_df = df_filtre
-
-        #filtre les marques seulment stock par ottogo
-        brands = ['APLUS', 'ASSO', 'AUTOPART', 'AVA COOLING', 'BARDAHL', 'BERU', 'BRILLANT TOOLS', 'CALORSTAT', 'CASTROL', 'CHAMPION LUBRICANTS', 'CLAS', 'CORTECO MEILLOR',
-                  'DAYCO', 'DELPHI AUTOMOTIVE', 'EBI', 'ELRING', 'FACET', 'FERODO', 'GRAF', 'GTI SODIFAC', 'GUTTMANN', 'HIDRIA', 'Hitachi', 'INTFRADIS', 'IZAR', 'KODAK', 'KSTOOLS',
-                  'LIQUIMOLY', 'LUK', 'MAX BATTERIE', 'MEAT and Doria', 'MECAFILTER', 'MISFAT', 'MOBIL', 'MONROE', 'NEOLUX', 'NEXANS', 'NGK', 'OPTIMA', 'OSRAM', 'PIERBURG',
-                  'PROXITECH', 'REBORN', 'RYMEC', 'SACHS', 'SASIC', 'SICAD', 'SIIL INDUSTRIE', 'SNR', 'SNRA', 'SPILU', 'STABILUS', 'STECO', 'T.R.W', 'TC MATIC', 'TECHNIKIT',
-                  'TMI', 'TOTAL', 'TRISCAN', 'UPOLL', 'VALEO', 'Valvoline', 'WARM UP']
-        
-        marque_col = 'Marque_x' if 'Marque_x' in merged_df.columns else 'Marque'
-        ottogo_stock = merged_df[merged_df[marque_col].isin(brands)]
-        ottogo_stock = ottogo_stock.fillna(0)
-
-        columns_to_check = ['2024 Qté Reçue', '2024 Qté Vendue', '2024 Qté en stock', '2025 Qté Reçue', '2025 Qté Vendue', 
-                            '2023 achat total', '2023 vente total', '2024 achat total', '2024 vente total', '2025 achat total', 
-                            '2025 vente total', '2025 Qté en stock']
-        
-        # Vérifier quelles colonnes existent réellement dans le DataFrame
-        existing_columns = [col for col in columns_to_check if col in ottogo_stock.columns]
-        missing_columns = [col for col in columns_to_check if col not in ottogo_stock.columns]
-        
-        if missing_columns:
-            # Ajouter les colonnes manquantes avec des valeurs par défaut
-            for col in missing_columns:
-                ottogo_stock[col] = 0
-        
-        # Check if all values in the columns_to_check are 0
-        df_non_null = ottogo_stock[~(ottogo_stock[columns_to_check] ==0).all(axis=1)]
-        df_non_null = df_non_null.copy()  # Ajoutez ceci avant les calculs
-
-        for annee in [2023, 2024, 2025]:
-            vente_total = f"{annee} vente total"
-            achat_total = f"{annee} achat total"
-            qte_vendue = f"{annee} Qté Vendue"
-            qte_recue = f"{annee} Qté Reçue" if annee != 2023 else "2023 Qté Reçue"  # attention à l'espace
-            qte_ve = f"{annee} Qté VE"
-
-            # Calcul sécurisé des marges pour éviter division par zéro
-            try:
-                vente_prix = np.where(df_non_null[qte_vendue] != 0, df_non_null[vente_total] / df_non_null[qte_vendue], 0)
-                achat_prix = np.where(df_non_null[qte_recue] != 0, df_non_null[achat_total] / df_non_null[qte_recue], 0)
-                df_non_null[f"marge/pcs {annee}"] = vente_prix - achat_prix
-            except:
-                df_non_null[f"marge/pcs {annee}"] = 0
-            
-            df_non_null[f"marge/pcs {annee}"] = df_non_null[f"marge/pcs {annee}"].fillna(0)
-            df_non_null[f"marge moyen {annee}"] = df_non_null[f"marge/pcs {annee}"] * df_non_null[qte_ve].fillna(0)
-            df_non_null[f"marge total {annee}"] = df_non_null[vente_total] - df_non_null[achat_total] 
-
-        current_day = '2025-06-05'
-        days = max(1, (pd.to_datetime(current_day) - pd.to_datetime("2025-01-01")).days +1)
-        df_non_null['marge prevu 2025'] = (df_non_null['marge moyen 2025']*(270/days)).fillna(0)
-
-        df_non_null['ratio_rotation_2025'] = np.where(df_non_null['2025 Qté en stock'] > 0, df_non_null['2025 Qté Vendue'] / df_non_null['2025 Qté en stock'], 0)
-        # Calcul sécurisé de la valeur stock pour éviter division par zéro
-        try:
-            prix_unitaire = np.where(
-                (df_non_null['2025 Qté Reçue'] != 0) & (df_non_null['2025 Qté Reçue'].notna()),
-                df_non_null['2025 achat total'] / df_non_null['2025 Qté Reçue'],
-                0
-            )
-            df_non_null['valeur_stock_2025'] = df_non_null['2025 Qté en stock'] * np.abs(prix_unitaire)
-        except:
-            df_non_null['valeur_stock_2025'] = 0
-        df_non_null['valeur_stock_2025'] = df_non_null['valeur_stock_2025'].fillna(0)
-
-        # Classement top 2000 CA, QTE, Profit
-        # Classement des articles selon différents critères
-        classements = {
-            'CA 2024': '2024 vente total',
-            'QTE 2024': 'pourcentage',
-            'Profit 2024': 'marge total 2024'
-        }
-
-        for nom_rang, colonne in classements.items():
-            df_non_null[nom_rang] = df_non_null[colonne].rank(ascending=False, method='first').astype(int)
-
-        # Critères de tri pour les top 2000
-        top_criteres = [
-            ('ratio_rotation_2025', False),
-            ('CA 2024', True),
-            ('QTE 2024', True),
-            ('Profit 2024', True)
-        ]
-
-        # Sélectionner les top 2000 pour chaque critère
-        top_dfs = [
-            df_non_null.sort_values(by=col, ascending=asc).head(2000)
-            for col, asc in top_criteres
-        ]
-
-        # Fusionner et supprimer les doublons
-        df_non_null = pd.concat(top_dfs).drop_duplicates(subset='Code Article', keep='first')
-        st.dataframe(df_non_null[df_non_null['Code Article'] == 'APL13086AP'])
-
-        df_non_null['stock_secu'] = z* df_non_null['ecart_type_pondere'] * np.sqrt(lead_time)
-        df_non_null['seuil_cde'] = (df_non_null['ventes_quotidiennes_moyennes'] * lead_time) + df_non_null['stock_secu']
-
-        # qté conseil
-        df_non_null['cde_conseil'] = np.where(
-            df_non_null['2025 Qté en stock'] <= df_non_null['seuil_cde'],
-            np.maximum(0, (df_non_null['ventes_quotidiennes_moyennes'] * forcast) + df_non_null['stock_secu'] - df_non_null['2025 Qté en stock']),
-            0  )
-
-        seuil_75 = np.quantile(df_non_null['ratio_rotation_2025'], 0.75)
-        median = np.median(df_non_null['ratio_rotation_2025'])
-
-        conditions = [
-            df_non_null['ratio_rotation_2025'] >= seuil_75,
-            (df_non_null['ratio_rotation_2025'] >= median) & (df_non_null['ratio_rotation_2025'] < seuil_75),
-            df_non_null['ratio_rotation_2025'] < median
-        ]
-
-        choices = ['élevé', 'moyen', 'faible']
-
-        df_non_null['ratio_statut'] = np.select(conditions, choices, default='faible')
-
-        df_non_null['risque_rup'] = np.where(
-            (df_non_null['2025 Qté en stock'] == 0) & (df_non_null['ventes_quotidiennes_moyennes'] > 0),
-            'Urgent',
-            np.where(
-                df_non_null['2025 Qté en stock'] < df_non_null['stock_secu'],
-                'Besoin de réapprovisionner',
-                'Inventaire adéquat'
-            )
-        )
-        # Section résultats de l'analyse de risque
-        st.markdown("""
-        <div class="section-header">
-            <h3 style="margin: 0;">⚠️ Analyse des Risques de Rupture</h3>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Afficher les catégories de risque avec métriques
-        risque_count = df_non_null['risque_rup'].value_counts()
-        risk_col1, risk_col2, risk_col3 = st.columns(3)
-        
-        colors_risk = {'Urgent': '#e74c3c', 'Besoin de réapprovisionner': '#f39c12', 'Inventaire adéquat': '#27ae60'}
-        
-        for i, (risk, count) in enumerate(risque_count.items()):
-            with [risk_col1, risk_col2, risk_col3][i % 3]:
-                color = colors_risk.get(risk, '#667eea')
-                st.markdown(f"""
-                <div style="background: {color}; padding: 1rem; border-radius: 10px; text-align: center; margin: 0.5rem 0;">
-                    <h4 style="margin: 0; color: white;">{risk}</h4>
-                    <h2 style="margin: 0.5rem 0 0 0; color: white;">{count}</h2>
-                    <p style="margin: 0; color: #ecf0f1; font-size: 0.9rem;">articles</p>
+                
+                st.markdown("""
+                <div class="info-container">
+                    <h3 style="color: white; margin-bottom: 1rem;">🚀 Traitement Final</h3>
+                    <p style="color: #ecf0f1; margin: 0; line-height: 1.6;">
+                        Application des algorithmes avancés de réapprovisionnement : calcul des marges, 
+                        analyse des ratios de rotation, seuils de commande et recommandations.
+                    </p>
                 </div>
                 """, unsafe_allow_html=True)
 
-        # Section marques perdues
-        st.markdown("""
-        <div class="section-header">
-            <h3 style="margin: 0;">🔍 Analyse des Marques</h3>
-        </div>
-        """, unsafe_allow_html=True)
+                # Filtrage des marques Ottogo
+                brands = ['APLUS', 'ASSO', 'AUTOPART', 'AVA COOLING', 'BARDAHL', 'BERU', 'BRILLANT TOOLS', 'CALORSTAT', 'CASTROL', 'CHAMPION LUBRICANTS', 'CLAS', 'CORTECO MEILLOR',
+                          'DAYCO', 'DELPHI AUTOMOTIVE', 'EBI', 'ELRING', 'FACET', 'FERODO', 'GRAF', 'GTI SODIFAC', 'GUTTMANN', 'HIDRIA', 'Hitachi', 'INTFRADIS', 'IZAR', 'KODAK', 'KSTOOLS',
+                          'LIQUIMOLY', 'LUK', 'MAX BATTERIE', 'MEAT and Doria', 'MECAFILTER', 'MISFAT', 'MOBIL', 'MONROE', 'NEOLUX', 'NEXANS', 'NGK', 'OPTIMA', 'OSRAM', 'PIERBURG',
+                          'PROXITECH', 'REBORN', 'RYMEC', 'SACHS', 'SASIC', 'SICAD', 'SIIL INDUSTRIE', 'SNR', 'SNRA', 'SPILU', 'STABILUS', 'STECO', 'T.R.W', 'TC MATIC', 'TECHNIKIT',
+                          'TMI', 'TOTAL', 'TRISCAN', 'UPOLL', 'VALEO', 'Valvoline', 'WARM UP']
+                
+                marque_col = 'Marque_x' if 'Marque_x' in merged_df.columns else 'Marque'
+                ottogo_stock = merged_df[merged_df[marque_col].isin(brands)]
+                ottogo_stock = ottogo_stock.fillna(0)
+
+                columns_to_check = ['2024 Qté Reçue', '2024 Qté Vendue', '2024 Qté en stock', '2025 Qté Reçue', '2025 Qté Vendue', 
+                                    '2023 achat total', '2023 vente total', '2024 achat total', '2024 vente total', '2025 achat total', 
+                                    '2025 vente total', '2025 Qté en stock']
+                
+                # Vérifier quelles colonnes existent réellement dans le DataFrame
+                existing_columns = [col for col in columns_to_check if col in ottogo_stock.columns]
+                missing_columns = [col for col in columns_to_check if col not in ottogo_stock.columns]
+                
+                if missing_columns:
+                    for col in missing_columns:
+                        ottogo_stock[col] = 0
+                
+                # Filtrer les données non nulles
+                df_non_null = ottogo_stock[~(ottogo_stock[columns_to_check] == 0).all(axis=1)]
+                df_non_null = df_non_null.copy()
+
+                # Calcul des marges par année
+                for annee in [2023, 2024, 2025]:
+                    vente_total = f"{annee} vente total"
+                    achat_total = f"{annee} achat total"
+                    qte_vendue = f"{annee} Qté Vendue"
+                    qte_recue = f"{annee} Qté Reçue" if annee != 2023 else "2023 Qté Reçue"
+                    qte_ve = f"{annee} Qté VE"
+
+                    # Calcul sécurisé des marges
+                    try:
+                        vente_prix = np.where(df_non_null[qte_vendue] != 0, df_non_null[vente_total] / df_non_null[qte_vendue], 0)
+                        achat_prix = np.where(df_non_null[qte_recue] != 0, df_non_null[achat_total] / df_non_null[qte_recue], 0)
+                        df_non_null[f"marge/pcs {annee}"] = vente_prix - achat_prix
+                    except:
+                        df_non_null[f"marge/pcs {annee}"] = 0
+                    
+                    df_non_null[f"marge/pcs {annee}"] = df_non_null[f"marge/pcs {annee}"].fillna(0)
+                    df_non_null[f"marge moyen {annee}"] = df_non_null[f"marge/pcs {annee}"] * df_non_null[qte_ve].fillna(0)
+                    df_non_null[f"marge total {annee}"] = df_non_null[vente_total] - df_non_null[achat_total]
+
+                current_day = '2025-06-05'
+                days = max(1, (pd.to_datetime(current_day) - pd.to_datetime("2025-01-01")).days + 1)
+                df_non_null['marge prevu 2025'] = (df_non_null['marge moyen 2025'] * (270 / days)).fillna(0)
+
+                # Calculs avancés
+                df_non_null['ratio_rotation_2025'] = np.where(df_non_null['2025 Qté en stock'] > 0, 
+                                                              df_non_null['2025 Qté Vendue'] / df_non_null['2025 Qté en stock'], 0)
+                
+                try:
+                    prix_unitaire = np.where(
+                        (df_non_null['2025 Qté Reçue'] != 0) & (df_non_null['2025 Qté Reçue'].notna()),
+                        df_non_null['2025 achat total'] / df_non_null['2025 Qté Reçue'],
+                        0
+                    )
+                    df_non_null['valeur_stock_2025'] = df_non_null['2025 Qté en stock'] * np.abs(prix_unitaire)
+                except:
+                    df_non_null['valeur_stock_2025'] = 0
+                df_non_null['valeur_stock_2025'] = df_non_null['valeur_stock_2025'].fillna(0)
+
+                # Classements
+                classements = {
+                    'CA 2024': '2024 vente total',
+                    'QTE 2024': 'pourcentage',
+                    'Profit 2024': 'marge total 2024'
+                }
+
+                for nom_rang, colonne in classements.items():
+                    df_non_null[nom_rang] = df_non_null[colonne].rank(ascending=False, method='first').astype(int)
+
+                # Critères de tri pour les top 2000
+                top_criteres = [
+                    ('ratio_rotation_2025', False),
+                    ('CA 2024', True),
+                    ('QTE 2024', True),
+                    ('Profit 2024', True)
+                ]
+
+                # Sélectionner les top 2000 pour chaque critère
+                top_dfs = [
+                    df_non_null.sort_values(by=col, ascending=asc).head(2000)
+                    for col, asc in top_criteres
+                ]
+
+                # Fusionner et supprimer les doublons
+                df_non_null = pd.concat(top_dfs).drop_duplicates(subset='Code Article', keep='first')
+
+                # Calculs de réapprovisionnement
+                df_non_null['stock_secu'] = z * df_non_null['ecart_type_pondere'] * np.sqrt(lead_time)
+                df_non_null['seuil_cde'] = (df_non_null['ventes_quotidiennes_moyennes'] * lead_time) + df_non_null['stock_secu']
+
+                # Quantité conseil
+                df_non_null['cde_conseil'] = np.where(
+                    df_non_null['2025 Qté en stock'] <= df_non_null['seuil_cde'],
+                    np.maximum(0, (df_non_null['ventes_quotidiennes_moyennes'] * forcast) + df_non_null['stock_secu'] - df_non_null['2025 Qté en stock']),
+                    0
+                )
+
+                # Analyse des risques
+                seuil_75 = np.quantile(df_non_null['ratio_rotation_2025'], 0.75)
+                median = np.median(df_non_null['ratio_rotation_2025'])
+
+                conditions = [
+                    df_non_null['ratio_rotation_2025'] >= seuil_75,
+                    (df_non_null['ratio_rotation_2025'] >= median) & (df_non_null['ratio_rotation_2025'] < seuil_75),
+                    df_non_null['ratio_rotation_2025'] < median
+                ]
+
+                choices = ['élevé', 'moyen', 'faible']
+                df_non_null['ratio_statut'] = np.select(conditions, choices, default='faible')
+
+                df_non_null['risque_rup'] = np.where(
+                    (df_non_null['2025 Qté en stock'] == 0) & (df_non_null['ventes_quotidiennes_moyennes'] > 0),
+                    'Urgent',
+                    np.where(
+                        df_non_null['2025 Qté en stock'] < df_non_null['stock_secu'],
+                        'Besoin de réapprovisionner',
+                        'Inventaire adéquat'
+                    )
+                )
+
+                # Section résultats de l'analyse de risque
+                st.markdown("""
+                <div class="section-header">
+                    <h3 style="margin: 0;">⚠️ Analyse des Risques de Rupture</h3>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Afficher les catégories de risque
+                risque_count = df_non_null['risque_rup'].value_counts()
+                risk_col1, risk_col2, risk_col3 = st.columns(3)
+                
+                colors_risk = {'Urgent': '#e74c3c', 'Besoin de réapprovisionner': '#f39c12', 'Inventaire adéquat': '#27ae60'}
+                
+                for i, (risk, count) in enumerate(risque_count.items()):
+                    with [risk_col1, risk_col2, risk_col3][i % 3]:
+                        color = colors_risk.get(risk, '#667eea')
+                        st.markdown(f"""
+                        <div style="background: {color}; padding: 1rem; border-radius: 10px; text-align: center; margin: 0.5rem 0;">
+                            <h4 style="margin: 0; color: white;">{risk}</h4>
+                            <h2 style="margin: 0.5rem 0 0 0; color: white;">{count}</h2>
+                            <p style="margin: 0; color: #ecf0f1; font-size: 0.9rem;">articles</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                # Section marques
+                st.markdown("""
+                <div class="section-header">
+                    <h3 style="margin: 0;">🔍 Analyse des Marques</h3>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Identifier les marques filtrées
+                set1 = set(df_non_null[marque_col])
+                set2 = set(brands)
+                dff1 = set1 - set2
+                dff2 = set2 - set1
+                different_words = dff1.union(dff2)
+                
+                if different_words:
+                    st.markdown("""
+                    <div class="warning-container">
+                        <h4 style="margin: 0; color: white;">🎯 Marques Filtrées</h4>
+                        <p style="margin: 0.5rem 0 0 0; color: white;">
+                            Certaines marques ont été filtrées car elles ne représentent pas une valeur significative.
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    st.write(f"📋 Marques concernées: {', '.join(different_words)}")
+                else:
+                    st.success("✅ Toutes les marques ont été conservées dans l'analyse.")
+
+                # Section téléchargement
+                st.markdown("""
+                <div class="section-header">
+                    <h2 style="margin: 0;">📥 Téléchargement des Résultats</h2>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Statistiques finales
+                total_articles = len(df_non_null)
+                urgent_articles = len(df_non_null[df_non_null['risque_rup'] == 'Urgent'])
+                reappro_articles = len(df_non_null[df_non_null['risque_rup'] == 'Besoin de réapprovisionner'])
+                adequate_articles = total_articles - urgent_articles - reappro_articles
+                
+                # Afficher les statistiques finales
+                final_col1, final_col2, final_col3, final_col4 = st.columns(4)
+                
+                with final_col1:
+                    st.markdown(f"""
+                    <div class="metric-container">
+                        <h4 style="margin: 0; color: white;">📊 Total Articles</h4>
+                        <h2 style="margin: 0.5rem 0 0 0; color: white;">{total_articles}</h2>
+                        <p style="margin: 0; color: #ecf0f1; font-size: 0.9rem;">analysés</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with final_col2:
+                    st.markdown(f"""
+                    <div style="background: #e74c3c; padding: 1rem; border-radius: 10px; text-align: center; margin: 0.5rem 0;">
+                        <h4 style="margin: 0; color: white;">🚨 Urgent</h4>
+                        <h2 style="margin: 0.5rem 0 0 0; color: white;">{urgent_articles}</h2>
+                        <p style="margin: 0; color: #ecf0f1; font-size: 0.9rem;">articles</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with final_col3:
+                    st.markdown(f"""
+                    <div style="background: #f39c12; padding: 1rem; border-radius: 10px; text-align: center; margin: 0.5rem 0;">
+                        <h4 style="margin: 0; color: white;">⚠️ Réappro</h4>
+                        <h2 style="margin: 0.5rem 0 0 0; color: white;">{reappro_articles}</h2>
+                        <p style="margin: 0; color: #ecf0f1; font-size: 0.9rem;">articles</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with final_col4:
+                    st.markdown(f"""
+                    <div style="background: #27ae60; padding: 1rem; border-radius: 10px; text-align: center; margin: 0.5rem 0;">
+                        <h4 style="margin: 0; color: white;">✅ Adéquat</h4>
+                        <h2 style="margin: 0.5rem 0 0 0; color: white;">{adequate_articles}</h2>
+                        <p style="margin: 0; color: #ecf0f1; font-size: 0.9rem;">articles</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                # Message final
+                st.markdown("""
+                <div style="text-align: center; margin: 2rem 0;">
+                    <h3 style="color: #2c3e50; margin-bottom: 1rem;">🎉 Votre analyse finale est terminée!</h3>
+                    <p style="color: #7f8c8d; margin-bottom: 2rem;">
+                        Téléchargez le rapport complet avec toutes les données de prix et recommandations.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Préparation et téléchargement du fichier Excel
+                output = io.BytesIO()
+                df_non_null.to_excel(output, index=False)
+                output.seek(0)
+
+                # Centrer le bouton de téléchargement
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col2:
+                    st.download_button(
+                        label="📥 Télécharger l'Analyse Complète (Excel)",
+                        data=output,
+                        file_name=f"analyse_reapprovisionnement_complete_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+                
+            except Exception as e:
+                st.error(f"❌ Erreur lors du traitement du fichier prix: {e}")
+                st.info("💡 Veuillez vérifier le format de votre fichier prix et réessayer.")
+                
+                with st.expander("🔍 Détails de l'erreur"):
+                    st.code(str(e))
         
-        # Identifier les marques perdus
-        a1=df_non_null[marque_col].unique().tolist()
-        set1 = set(df_non_null[marque_col])
-        set2 = set(brands)
-        dff1 = set1 - set2
-        dff2 = set2 - set1
-        different_words = dff1.union(dff2)
-        
-        if different_words:
+        else:
+            # Message d'attente pour le fichier prix
             st.markdown("""
-            <div class="warning-container">
-                <h4 style="margin: 0; color: white;">🎯 Marques Filtrées</h4>
-                <p style="margin: 0.5rem 0 0 0; color: white;">
-                    La raison du filtrage est que ces articles ne représentent pas une valeur significative 
-                    en quantité, CA ou marge.
+            <div style="text-align: center; margin: 2rem 0;">
+                <h3 style="color: #2c3e50; margin-bottom: 1rem;">⏳ En attente du fichier prix</h3>
+                <p style="color: #7f8c8d; margin-bottom: 2rem;">
+                    L'analyse de base est terminée. Téléchargez le fichier prix ci-dessus pour accéder 
+                    à l'analyse finale avec calcul des marges et téléchargement des résultats.
                 </p>
             </div>
             """, unsafe_allow_html=True)
-            st.write(f"📋 Marques concernées: {', '.join(different_words)}")
-        else:
-            st.success("✅ Toutes les marques ont été conservées dans l'analyse.")
+            
+            # Afficher un aperçu des données de base sans Excel
+            st.markdown("""
+            <div class="section-header">
+                <h3 style="margin: 0;">👁️ Aperçu des Données de Base</h3>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.dataframe(df_filtre.head(10), use_container_width=True)
+            
+            # Statistiques de base
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(f"""
+                <div class="metric-container">
+                    <h4 style="margin: 0; color: white;">📦 Total Articles</h4>
+                    <h2 style="margin: 0.5rem 0 0 0; color: white;">{len(df_filtre)}</h2>
+                    <p style="margin: 0; color: #ecf0f1; font-size: 0.9rem;">dans l'analyse</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                articles_a = len(df_filtre[df_filtre['categorie'] == 'A'])
+                st.markdown(f"""
+                <div class="metric-container">
+                    <h4 style="margin: 0; color: white;">🎯 Catégorie A</h4>
+                    <h2 style="margin: 0.5rem 0 0 0; color: white;">{articles_a}</h2>
+                    <p style="margin: 0; color: #ecf0f1; font-size: 0.9rem;">articles prioritaires</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                ventes_moy = df_filtre['ventes_quotidiennes_moyennes'].mean()
+                st.markdown(f"""
+                <div class="metric-container">
+                    <h4 style="margin: 0; color: white;">📈 Ventes Moy.</h4>
+                    <h2 style="margin: 0.5rem 0 0 0; color: white;">{ventes_moy:.2f}</h2>
+                    <p style="margin: 0; color: #ecf0f1; font-size: 0.9rem;">par jour</p>
+                </div>
+                """, unsafe_allow_html=True)
 
-        # Section téléchargement avec style amélioré
-        st.markdown("""
-        <div class="section-header">
-            <h2 style="margin: 0;">📥 Téléchargement des Résultats</h2>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Statistiques finales
-        total_articles = len(df_non_null)
-        urgent_articles = len(df_non_null[df_non_null['risque_rup'] == 'Urgent'])
-        reappro_articles = len(df_non_null[df_non_null['risque_rup'] == 'Besoin de réapprovisionner'])
-        
-        # Afficher les statistiques finales
-        final_col1, final_col2, final_col3, final_col4 = st.columns(4)
-        
-        with final_col1:
-            st.markdown(f"""
-            <div class="metric-container">
-                <h4 style="margin: 0; color: white;">📊 Total Articles</h4>
-                <h2 style="margin: 0.5rem 0 0 0; color: white;">{total_articles}</h2>
-                <p style="margin: 0; color: #ecf0f1; font-size: 0.9rem;">analysés</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with final_col2:
-            st.markdown(f"""
-            <div style="background: #e74c3c; padding: 1rem; border-radius: 10px; text-align: center; margin: 0.5rem 0;">
-                <h4 style="margin: 0; color: white;">🚨 Urgent</h4>
-                <h2 style="margin: 0.5rem 0 0 0; color: white;">{urgent_articles}</h2>
-                <p style="margin: 0; color: #ecf0f1; font-size: 0.9rem;">articles</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with final_col3:
-            st.markdown(f"""
-            <div style="background: #f39c12; padding: 1rem; border-radius: 10px; text-align: center; margin: 0.5rem 0;">
-                <h4 style="margin: 0; color: white;">⚠️ Réappro</h4>
-                <h2 style="margin: 0.5rem 0 0 0; color: white;">{reappro_articles}</h2>
-                <p style="margin: 0; color: #ecf0f1; font-size: 0.9rem;">articles</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with final_col4:
-            adequate_articles = total_articles - urgent_articles - reappro_articles
-            st.markdown(f"""
-            <div style="background: #27ae60; padding: 1rem; border-radius: 10px; text-align: center; margin: 0.5rem 0;">
-                <h4 style="margin: 0; color: white;">✅ Adéquat</h4>
-                <h2 style="margin: 0.5rem 0 0 0; color: white;">{adequate_articles}</h2>
-                <p style="margin: 0; color: #ecf0f1; font-size: 0.9rem;">articles</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Message final stylé
-        st.markdown("""
-        <div style="text-align: center; margin: 2rem 0;">
-            <h3 style="color: #2c3e50; margin-bottom: 1rem;">🎉 Votre analyse est terminée!</h3>
-            <p style="color: #7f8c8d; margin-bottom: 2rem;">
-                Téléchargez le rapport complet pour accéder à tous les détails de l'analyse de réapprovisionnement.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Préparation du fichier Excel
-        output = io.BytesIO()
-        df_non_null.to_excel(output, index=False)
-        output.seek(0)
-
-        # Centrer le bouton de téléchargement
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.download_button(
-                label="📥 Télécharger l'Analyse Complète (Excel)",
-                data=output,
-                file_name=f"analyse_reapprovisionnement_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-        
     except Exception as e:
         st.error(f"❌ Erreur lors du traitement des données : {e}")
         st.info("💡 Veuillez vérifier le format de vos fichiers Excel et réessayer.")
